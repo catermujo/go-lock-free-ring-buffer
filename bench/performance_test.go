@@ -2,7 +2,6 @@ package bench
 
 import (
 	"fmt"
-	"github.com/catermujo/ringo"
 	"math/rand"
 	"os"
 	"runtime"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/catermujo/ringo"
 )
 
 var (
@@ -84,9 +85,9 @@ func BenchmarkHybridSPSC(b *testing.B) {
 }
 
 type fakeBuffer[T any] struct {
-	capacity uint64
-	ch       chan T
 	empty    T
+	ch       chan T
+	capacity uint64
 }
 
 func newFakeBuffer[T any](capacity uint64) ringo.RingBuffer[T] {
@@ -96,7 +97,7 @@ func newFakeBuffer[T any](capacity uint64) ringo.RingBuffer[T] {
 	}
 }
 
-func (r *fakeBuffer[T]) Offer(value T) (success bool) {
+func (r *fakeBuffer[T]) Put(value T) (success bool) {
 	select {
 	case r.ch <- value:
 		return true
@@ -105,7 +106,7 @@ func (r *fakeBuffer[T]) Offer(value T) (success bool) {
 	}
 }
 
-func (r *fakeBuffer[T]) Poll() (value T, success bool) {
+func (r *fakeBuffer[T]) Get() (value T, success bool) {
 	select {
 	case v := <-r.ch:
 		return v, true
@@ -114,7 +115,7 @@ func (r *fakeBuffer[T]) Poll() (value T, success bool) {
 	}
 }
 
-func (r *fakeBuffer[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
+func (r *fakeBuffer[T]) Produce(valueSupplier func() (v T, finish bool)) {
 	v, finish := valueSupplier()
 	if finish {
 		return
@@ -123,12 +124,12 @@ func (r *fakeBuffer[T]) SingleProducerOffer(valueSupplier func() (v T, finish bo
 	r.ch <- v
 }
 
-func (r *fakeBuffer[T]) SingleConsumerPoll(valueConsumer func(T)) {
+func (r *fakeBuffer[T]) Consume(valueConsumer func(T)) {
 	v := <-r.ch
 	valueConsumer(v)
 }
 
-func (r *fakeBuffer[T]) SingleConsumerPollVec(ret []T) (validCnt uint64) {
+func (r *fakeBuffer[T]) ConsumeVec(ret []T) (validCnt uint64) {
 	return
 }
 
@@ -141,14 +142,16 @@ func setup() []int {
 	return ints
 }
 
-var controlCh = make(chan bool)
-var wg sync.WaitGroup
+var (
+	controlCh = make(chan bool)
+	wg        sync.WaitGroup
+)
 
 func manage(b *testing.B, threadCount int, trueCount int) {
 	runtime.GOMAXPROCS(threadCount)
 
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		for i := 0; i < threadCount; i++ {
 			if trueCount > 0 {
 				controlCh <- true
@@ -173,9 +176,9 @@ func mpmcBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, 
 		wg.Wait()
 		for i := 1; pb.Next(); i++ {
 			if producer {
-				buffer.Offer(ints[(i & (len(ints) - 1))])
+				buffer.Put(ints[(i & (len(ints) - 1))])
 			} else {
-				if _, success := buffer.Poll(); success {
+				if _, success := buffer.Get(); success {
 					atomic.AddInt32(&counter, 1)
 				}
 			}
@@ -199,9 +202,9 @@ func mpscBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, 
 		wg.Wait()
 		for i := 1; pb.Next(); i++ {
 			if producer {
-				buffer.Offer(ints[(i & (len(ints) - 1))])
+				buffer.Put(ints[(i & (len(ints) - 1))])
 			} else {
-				buffer.SingleConsumerPoll(consumer)
+				buffer.Consume(consumer)
 			}
 		}
 	})
@@ -214,16 +217,16 @@ func mpscBenchmarkVec(b *testing.B, buffer ringo.RingBuffer[int], threadCount in
 	ints := setup()
 
 	counter := int32(0)
-	ret := make([]int, capacity, capacity)
+	ret := make([]int, capacity)
 	manage(b, threadCount, trueCount)
 	b.RunParallel(func(pb *testing.PB) {
 		producer := <-controlCh
 		wg.Wait()
 		for i := 1; pb.Next(); i++ {
 			if producer {
-				buffer.Offer(ints[(i & (len(ints) - 1))])
+				buffer.Put(ints[(i & (len(ints) - 1))])
 			} else {
-				validCnt := buffer.SingleConsumerPollVec(ret)
+				validCnt := buffer.ConsumeVec(ret)
 				atomic.AddInt32(&counter, int32(validCnt))
 			}
 		}
@@ -244,13 +247,13 @@ func spmcBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, 
 		for i := 1; pb.Next(); i++ {
 			if producer {
 				j := i
-				buffer.SingleProducerOffer(func() (v int, finish bool) {
+				buffer.Produce(func() (v int, finish bool) {
 					v = ints[(j & (len(ints) - 1))]
 					j++
 					return
 				})
 			} else {
-				if _, success := buffer.Poll(); success {
+				if _, success := buffer.Get(); success {
 					atomic.AddInt32(&counter, 1)
 				}
 			}
@@ -275,13 +278,13 @@ func spscBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, 
 		for i := 1; pb.Next(); i++ {
 			if producer {
 				j := i
-				buffer.SingleProducerOffer(func() (v int, finish bool) {
+				buffer.Produce(func() (v int, finish bool) {
 					v = ints[(j & (len(ints) - 1))]
 					j++
 					return
 				})
 			} else {
-				buffer.SingleConsumerPoll(consumer)
+				buffer.Consume(consumer)
 			}
 		}
 	})

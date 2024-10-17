@@ -1,8 +1,9 @@
 package ringo
 
 import (
-	. "gopkg.in/check.v1"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 // hook up go-check to go testing
@@ -44,8 +45,8 @@ func (s *MySuite) TestOfferAndPollSuccess(c *C) {
 		buffer := New[*string](t, 10)
 
 		// when
-		result := buffer.Offer(&fakeString)
-		poll, _ := buffer.Poll()
+		result := buffer.Put(&fakeString)
+		poll, _ := buffer.Get()
 
 		// then
 		c.Assert(result, Equals, true)
@@ -60,11 +61,11 @@ func (s *MySuite) TestOfferFailedWhenFull(c *C) {
 		buffer := New[int](t, uint64(capacity))
 		realCapacity := findPowerOfTwo(uint64(capacity + 1))
 		for i := 0; i < int(realCapacity); i++ {
-			buffer.Offer(i)
+			buffer.Put(i)
 		}
 
 		// when
-		offered := buffer.Offer(10)
+		offered := buffer.Put(10)
 
 		// then
 		c.Assert(offered, Equals, false)
@@ -78,7 +79,7 @@ func (s *MySuite) TestPollFailedWhenEmpty(c *C) {
 		buffer := New[int](t, uint64(capacity))
 
 		// when
-		_, success := buffer.Poll()
+		_, success := buffer.Get()
 
 		// then
 		c.Assert(success, Equals, false)
@@ -93,37 +94,37 @@ func (s *MySuite) TestRingBufferShift(c *C) {
 
 		// when
 		for i := 0; i < 13; i++ {
-			buffer.Offer(i)
+			buffer.Put(i)
 		}
 
 		// when
-		buffer.Offer(13)
-		buffer.Offer(14)
+		buffer.Put(13)
+		buffer.Put(14)
 
 		// then
-		polled, success := buffer.Poll()
+		polled, success := buffer.Get()
 		c.Assert(success, Equals, true)
 		c.Assert(polled, Equals, 0)
 
 		// when
-		buffer.Offer(15)
+		buffer.Put(15)
 
 		// then
 		for i := 0; i < 14; i++ {
-			polled, success := buffer.Poll()
+			polled, success := buffer.Get()
 			c.Assert(success, Equals, true)
 			c.Assert(polled, Equals, i+1)
 		}
 
 		// when
-		buffer.Offer(16)
-		buffer.Offer(17)
-		buffer.Offer(18)
+		buffer.Put(16)
+		buffer.Put(17)
+		buffer.Put(18)
 
 		// then
-		polled1, _ := buffer.Poll()
+		polled1, _ := buffer.Get()
 		c.Assert(polled1, Equals, 15)
-		polled2, _ := buffer.Poll()
+		polled2, _ := buffer.Get()
 		c.Assert(polled2, Equals, 16)
 	}
 }

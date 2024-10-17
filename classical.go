@@ -22,7 +22,7 @@ func newClassical[T any](capacity uint64) RingBuffer[T] {
 	}
 }
 
-func (r *classical[T]) Offer(value T) (success bool) {
+func (r *classical[T]) Put(value T) bool {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -43,7 +43,7 @@ func (r *classical[T]) Offer(value T) (success bool) {
 	return true
 }
 
-func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
+func (r *classical[T]) Produce(producer func() (T, bool)) {
 	oldTail := r.tail
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isFull(oldTail, oldHead) {
@@ -58,7 +58,7 @@ func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish boo
 			break
 		}
 
-		v, finish := valueSupplier()
+		v, finish := producer()
 		if finish {
 			break
 		}
@@ -67,7 +67,7 @@ func (r *classical[T]) SingleProducerOffer(valueSupplier func() (v T, finish boo
 	atomic.StoreUint64(&r.tail, newTail-1)
 }
 
-func (r *classical[T]) Poll() (value T, success bool) {
+func (r *classical[T]) Get() (value T, success bool) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := atomic.LoadUint64(&r.head)
 	if r.isEmpty(oldTail, oldHead) {
@@ -88,7 +88,7 @@ func (r *classical[T]) Poll() (value T, success bool) {
 	return *headNode, true
 }
 
-func (r *classical[T]) SingleConsumerPoll(valueConsumer func(T)) {
+func (r *classical[T]) Consume(consumer func(T)) {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := r.head
 	if r.isEmpty(oldTail, oldHead) {
@@ -102,18 +102,18 @@ func (r *classical[T]) SingleConsumerPoll(valueConsumer func(T)) {
 		if currNode == nil {
 			break
 		}
-		valueConsumer(*currNode)
+		consumer(*currNode)
 		r.element[currHead&r.mask] = nil
 	}
 
 	atomic.StoreUint64(&r.head, currHead-1)
 }
 
-func (r *classical[T]) SingleConsumerPollVec(ret []T) (validCnt uint64) {
+func (r *classical[T]) ConsumeVec(ret []T) uint64 {
 	oldTail := atomic.LoadUint64(&r.tail)
 	oldHead := r.head
 	if r.isEmpty(oldTail, oldHead) {
-		return
+		return 0
 	}
 
 	currHead := oldHead + 1

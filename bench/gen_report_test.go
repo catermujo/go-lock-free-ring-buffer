@@ -3,14 +3,15 @@ package bench
 import (
 	"bufio"
 	"fmt"
-	"github.com/go-echarts/go-echarts/v2/charts"
-	"github.com/go-echarts/go-echarts/v2/opts"
 	"math"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"testing"
+
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
 )
 
 func TestGenReport(t *testing.T) {
@@ -86,10 +87,10 @@ func throwErrWithReason(t *testing.T, reason string) {
 }
 
 type lineChart struct {
+	series    map[string]points
 	title     string
 	xAxisName string
 	yAxisName string
-	series    map[string]points
 }
 
 type points map[float64][]float64
@@ -100,7 +101,7 @@ func (p points) addPoint(x float64, y float64) {
 
 func (p points) getXAxisAndYAxisData() (xAxisData []string, yAxisData []opts.LineData) {
 	var sortedXs []float64
-	for x, _ := range p {
+	for x := range p {
 		sortedXs = append(sortedXs, x)
 	}
 	sort.Float64s(sortedXs)
@@ -126,7 +127,7 @@ func meanWithIn3Sigma(vs []float64) float64 {
 	calSigma := func(vs []float64, mean float64) (sigma float64) {
 		sum := float64(0)
 		for _, v := range vs {
-			sum += math.Pow(v-mean, 2)
+			sum += (v - mean) * (v - mean)
 		}
 
 		sigma = math.Sqrt(sum / float64(len(vs)))
@@ -150,10 +151,10 @@ func meanWithIn3Sigma(vs []float64) float64 {
 
 func NewLineChart(title string, xAxisName string, yAxisName string) *lineChart {
 	return &lineChart{
-		title,
-		xAxisName,
-		yAxisName,
-		make(map[string]points),
+		title:     title,
+		xAxisName: xAxisName,
+		yAxisName: yAxisName,
+		series:    make(map[string]points),
 	}
 }
 
@@ -182,7 +183,7 @@ func (l *lineChart) genChart(htmlFileName string) error {
 	legend := make([]string, 0)
 
 	var names []string
-	for name, _ := range series {
+	for name := range series {
 		names = append(names, name)
 	}
 	sort.Strings(names)

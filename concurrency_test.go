@@ -1,11 +1,12 @@
 package ringo
 
 import (
-	. "gopkg.in/check.v1"
 	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
+
+	. "gopkg.in/check.v1"
 )
 
 func (s *MySuite) TestNodeMpmcConcurrencyRW(c *C) {
@@ -68,7 +69,7 @@ func MPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -77,7 +78,7 @@ func MPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -86,7 +87,7 @@ func MPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -100,7 +101,7 @@ func MPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 				finishWg.Done()
 				return
 			default:
-				if poll, success := buffer.Poll(); success {
+				if poll, success := buffer.Get(); success {
 					outputArr[counter] = poll
 					counter++
 				}
@@ -156,7 +157,7 @@ func MPSCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -165,7 +166,7 @@ func MPSCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -174,7 +175,7 @@ func MPSCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -190,7 +191,7 @@ func MPSCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 				finishWg.Done()
 				return
 			default:
-				buffer.SingleConsumerPoll(func(v *string) {
+				buffer.Consume(func(v *string) {
 					resultArr[counter] = v
 					counter++
 				})
@@ -226,7 +227,6 @@ func MPSCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 }
 
 func SPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*string]) uint64) {
-
 	// given
 	source := initDataSource()
 
@@ -238,7 +238,7 @@ func SPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 		defer wg.Done()
 		i := 0
 		for {
-			buffer.SingleProducerOffer(func() (v *string, finish bool) {
+			buffer.Produce(func() (v *string, finish bool) {
 				if i == len(source) {
 					return nil, true
 				}
@@ -262,7 +262,7 @@ func SPMCConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*strin
 				finishWg.Done()
 				return
 			default:
-				if poll, success := buffer.Poll(); success {
+				if poll, success := buffer.Get(); success {
 					outputArr[counter] = poll
 					counter++
 				}
@@ -316,7 +316,7 @@ func MPSCVecConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*st
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -325,7 +325,7 @@ func MPSCVecConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*st
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+8]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -334,7 +334,7 @@ func MPSCVecConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*st
 		defer wg.Done()
 		for i := 0; i < 8; i++ {
 			v := source[i+16]
-			for !buffer.Offer(&v) {
+			for !buffer.Put(&v) {
 			}
 		}
 	}
@@ -351,7 +351,7 @@ func MPSCVecConcurrencyRW(c *C, t BufferType, getHead func(buffer RingBuffer[*st
 				finishWg.Done()
 				return
 			default:
-				validCnt := buffer.SingleConsumerPollVec(ret)
+				validCnt := buffer.ConsumeVec(ret)
 				for i := uint64(0); i < validCnt; i++ {
 					resultArr[counter] = ret[i]
 					counter++

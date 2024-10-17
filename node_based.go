@@ -68,7 +68,7 @@ func newNodeBased[T any](capacity uint64) RingBuffer[T] {
 }
 
 // Offer a value pointer.
-func (r *nodeBased[T]) Offer(value T) (success bool) {
+func (r *nodeBased[T]) Put(value T) bool {
 	oldTail := atomic.LoadUint64(&r.tail)
 	tailNode := r.element[oldTail&r.mask]
 	oldStep := atomic.LoadUint64(&tailNode.step)
@@ -87,7 +87,7 @@ func (r *nodeBased[T]) Offer(value T) (success bool) {
 }
 
 // Poll head value pointer.
-func (r *nodeBased[T]) Poll() (value T, success bool) {
+func (r *nodeBased[T]) Get() (value T, _ bool) {
 	oldHead := atomic.LoadUint64(&r.head)
 	headNode := r.element[oldHead&r.mask]
 	oldStep := atomic.LoadUint64(&headNode.step)
@@ -105,7 +105,7 @@ func (r *nodeBased[T]) Poll() (value T, success bool) {
 	return value, true
 }
 
-func (r *nodeBased[T]) SingleProducerOffer(valueSupplier func() (v T, finish bool)) {
+func (r *nodeBased[T]) Produce(valueSupplier func() (T, bool)) {
 	// TODO: currently just wrapper
 	for {
 		v, finish := valueSupplier()
@@ -113,15 +113,15 @@ func (r *nodeBased[T]) SingleProducerOffer(valueSupplier func() (v T, finish boo
 			return
 		}
 
-		for !r.Offer(v) {
+		for !r.Put(v) {
 		}
 	}
 }
 
-func (r *nodeBased[T]) SingleConsumerPoll(valueConsumer func(T)) {
+func (r *nodeBased[T]) Consume(valueConsumer func(T)) {
 	// TODO: currently just wrapper
 	for {
-		v, success := r.Poll()
+		v, success := r.Get()
 		if !success {
 			return
 		}
@@ -129,11 +129,11 @@ func (r *nodeBased[T]) SingleConsumerPoll(valueConsumer func(T)) {
 	}
 }
 
-func (r *nodeBased[T]) SingleConsumerPollVec(ret []T) (end uint64) {
+func (r *nodeBased[T]) ConsumeVec(ret []T) uint64 {
 	// TODO: currently just wrapper
 	var cnt int
 	for ; cnt < len(ret); cnt++ {
-		v, success := r.Poll()
+		v, success := r.Get()
 		if !success {
 			break
 		}

@@ -1,12 +1,11 @@
 package ringo
 
-// RingBuffer defines the behavior of ring buffer
 type RingBuffer[T any] interface {
-	Offer(T) (success bool)
-	Poll() (value T, success bool)
-	SingleProducerOffer(valueSupplier func() (v T, finish bool))
-	SingleConsumerPoll(valueConsumer func(T))
-	SingleConsumerPollVec(ret []T) (validCnt uint64)
+	Put(T) bool
+	Get() (T, bool)
+	Produce(generator func() (T, bool))
+	Consume(consumer func(T))
+	ConsumeVec(ret []T) uint64
 }
 
 // BufferType contains different type names of ring buffer
