@@ -1,4 +1,4 @@
-package lfring
+package ringo
 
 import (
 	. "gopkg.in/check.v1"

@@ -1,15 +1,15 @@
-package lfring
+package ringo
 
 import (
 	"sync/atomic"
 )
 
 type classical[T any] struct {
+	element  []*T
 	head     uint64
 	tail     uint64
 	capacity uint64
 	mask     uint64
-	element  []*T
 }
 
 func newClassical[T any](capacity uint64) RingBuffer[T] {

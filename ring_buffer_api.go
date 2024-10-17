@@ -1,4 +1,4 @@
-package lfring
+package ringo
 
 // RingBuffer defines the behavior of ring buffer
 type RingBuffer[T any] interface {

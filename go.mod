@@ -1,4 +1,4 @@
-module github.com/LENSHOOD/go-lock-free-ring-buffer
+module github.com/catermujo/ringo
 
 go 1.18
 

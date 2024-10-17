@@ -2,7 +2,7 @@ package bench
 
 import (
 	"fmt"
-	"github.com/LENSHOOD/go-lock-free-ring-buffer"
+	"github.com/catermujo/ringo"
 	"math/rand"
 	"os"
 	"runtime"
@@ -32,12 +32,12 @@ func toUint64(s string) (ret uint64) {
 }
 
 func BenchmarkNodeMPMC(b *testing.B) {
-	mpmcRB := lfring.New[int](lfring.NodeBased, capacity)
+	mpmcRB := ringo.New[int](ringo.NodeBased, capacity)
 	mpmcBenchmark(b, mpmcRB, threadNum, mpmcProducerNum)
 }
 
 func BenchmarkHybridMPMC(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, mpmcProducerNum)
 }
 
@@ -47,39 +47,39 @@ func BenchmarkChannelMPMC(b *testing.B) {
 }
 
 func BenchmarkHybridMPSCControl(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridMPSC(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpscBenchmark(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridMPSCVec(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpscBenchmarkVec(b, mpscRB, threadNum, threadNum-1)
 }
 
 func BenchmarkHybridSPMCControl(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPMC(b *testing.B) {
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	spmcBenchmark(b, mpscRB, threadNum, 1)
 }
 
 func BenchmarkHybridSPSCControl(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	mpmcBenchmark(b, mpscRB, 2, 1)
 }
 
 func BenchmarkHybridSPSC(b *testing.B) {
 	runtime.GOMAXPROCS(2)
-	mpscRB := lfring.New[int](lfring.Classical, capacity)
+	mpscRB := ringo.New[int](ringo.Classical, capacity)
 	spscBenchmark(b, mpscRB, 2, 1)
 }
 
@@ -89,7 +89,7 @@ type fakeBuffer[T any] struct {
 	empty    T
 }
 
-func newFakeBuffer[T any](capacity uint64) lfring.RingBuffer[T] {
+func newFakeBuffer[T any](capacity uint64) ringo.RingBuffer[T] {
 	return &fakeBuffer[T]{
 		capacity: capacity,
 		ch:       make(chan T, capacity),
@@ -163,7 +163,7 @@ func manage(b *testing.B, threadCount int, trueCount int) {
 	}()
 }
 
-func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
+func mpmcBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -186,7 +186,7 @@ func mpmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int,
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
+func mpscBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -210,7 +210,7 @@ func mpscBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int,
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
+func mpscBenchmarkVec(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -233,7 +233,7 @@ func mpscBenchmarkVec(b *testing.B, buffer lfring.RingBuffer[int], threadCount i
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
+func spmcBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)
@@ -261,7 +261,7 @@ func spmcBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int,
 	b.ReportMetric(float64(counter), "handovers")
 }
 
-func spscBenchmark(b *testing.B, buffer lfring.RingBuffer[int], threadCount int, trueCount int) {
+func spscBenchmark(b *testing.B, buffer ringo.RingBuffer[int], threadCount int, trueCount int) {
 	ints := setup()
 
 	counter := int32(0)

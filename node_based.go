@@ -1,4 +1,4 @@
-package lfring
+package ringo
 
 import (
 	atomic "sync/atomic"
@@ -38,18 +38,18 @@ import (
 // to check the buffer status, if buffer full / empty will lead the producer / consumer never
 // pass the node.step check.
 type nodeBased[T any] struct {
-	head      uint64
-	_padding0 [56]byte
-	tail      uint64
-	_padding1 [56]byte
-	mask      uint64
-	_padding2 [56]byte
 	element   []*node[T]
+	head      uint64
+	tail      uint64
+	mask      uint64
+	_padding0 [56]byte
+	_padding1 [56]byte
+	_padding2 [56]byte
 }
 
 type node[T any] struct {
-	step     uint64
 	value    T
+	step     uint64
 	_padding [40]byte
 }
 
